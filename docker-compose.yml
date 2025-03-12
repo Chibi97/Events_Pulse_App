@@ -1,0 +1,101 @@
+services:
+  backend:
+    env_file:
+      - .env
+    image: yiisoftware/yii2-php:7.4-apache
+    volumes:
+      - ~/.composer-docker/cache:/root/.composer/cache:delegated
+      - ./:/app:delegated
+      - ./wait-for-it.sh:/wait-for-it.sh
+    ports:
+      - '8000:8000'
+    depends_on:
+      - db
+    working_dir: /app/backend
+    command: >
+      sh -c "chmod +x /wait-for-it.sh &&
+            /wait-for-it.sh db:3306 --timeout=60 -- &&
+            composer self-update --2 &&
+            composer install --prefer-dist &&
+            php yii migrate --interactive=0 &&
+            php yii seed/seed-events &&
+            (php yii queue/listen --verbose & ) &&
+            php yii serve 0.0.0.0:8000"
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_NAME=${DB_NAME}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+    networks:
+      - app-network
+
+  assets:
+    image: nginx:latest
+    container_name: assets-container
+    volumes:
+      - assets:/usr/share/nginx/html
+    ports:
+      - '9001:80'
+    networks:
+      - app-network
+
+  cron:
+    image: yiisoftware/yii2-php:7.4-apache
+    volumes:
+      - ./backend/jobs:/app/backend/jobs:delegated
+      - ./backend/cron:/etc/cron.d:delegated
+    working_dir: /app/backend
+    command: >
+      sh -c "apt-get update &&
+            apt-get install -y cron &&
+            chmod +x /etc/cron.d/cron-jobs &&
+            crontab /etc/cron.d/cron-jobs &&
+            cron -f"
+    networks:
+      - app-network
+
+  db:
+    image: mysql:8.0
+    container_name: mysql-container
+    ports:
+      - '3306:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - app-network
+
+  frontend:
+    image: node:20
+    working_dir: /app/frontend
+    volumes:
+      - ./frontend:/app/frontend
+    ports:
+      - '8080:8080'
+    command: >
+      sh -c "npm install &&
+            npm run dev"
+    depends_on:
+      - backend
+    environment:
+      - VITE_API_URL=${API_URL}
+      - VITE_API_KEY=${API_KEY}
+    networks:
+      - app-network
+
+volumes:
+  db_data:
+  assets:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./backend/assets
+
+networks:
+  app-network:
+    driver: bridge

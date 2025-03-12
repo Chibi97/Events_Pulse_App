@@ -1,0 +1,5 @@
+# Enqueue jobs at midnight
+0 0 * * * php /app/backend/yii scheduler/run-daily-jobs
+
+# Run jobs from the queue at 12:03 AM
+3 0 * * * php /app/backend/yii queue/run
