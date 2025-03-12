@@ -63,8 +63,6 @@ You can run backend test cases by running this command directly in the backend c
 > Besides `Authentication`, only `Content-Type` header is allowed by my `ApiCorsFilter`. The filter only allows `http://localhost:8080` to query the API.
 
 ## Database schema
-My MySQL database looks like this:
-<< image >>
 
 I decided to use MySQL because it is well-established, reliable, and widely used relational database management system. Yii2 has great support for MySQL, making it easy to integrate with my application, resulting in optimal database operations.
 
